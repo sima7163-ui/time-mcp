@@ -55,14 +55,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       // Timezone priority: explicit parameter > env variable > UTC fallback
       const timezone = request.params.arguments?.timezone || process.env.DEFAULT_TIMEZONE || 'UTC';
-      
-      const response = await fetch(WORKER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ timezone }),
-      });
+
+      // Use AbortController to prevent hanging requests from leaking memory
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      let response;
+      try {
+        response = await fetch(WORKER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ timezone }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!response.ok) {
         throw new Error(`Worker returned ${response.status}: ${response.statusText}`);
@@ -99,6 +109,15 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Time MCP server running');
+
+  // Graceful shutdown to prevent memory leaks from dangling connections
+  const cleanup = async () => {
+    console.error('Shutting down Time MCP server...');
+    await server.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
 }
 
 main().catch((error) => {

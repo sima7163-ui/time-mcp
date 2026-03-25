@@ -7,6 +7,24 @@
  * Built by Jess & Cecil - March 2026
  */
 
+// Cache Intl.DateTimeFormat instances to avoid re-creating them on every request
+const formatterCache = new Map();
+
+function getFormatter(timezone, options) {
+  const key = `${timezone}:${JSON.stringify(options)}`;
+  let fmt = formatterCache.get(key);
+  if (!fmt) {
+    // Cap cache size to prevent unbounded memory growth
+    if (formatterCache.size >= 200) {
+      const firstKey = formatterCache.keys().next().value;
+      formatterCache.delete(firstKey);
+    }
+    fmt = new Intl.DateTimeFormat('en-US', { timeZone: timezone, ...options });
+    formatterCache.set(key, fmt);
+  }
+  return fmt;
+}
+
 export default {
   async fetch(request, env, ctx) {
     // Handle CORS preflight
@@ -34,24 +52,21 @@ export default {
       // Get current time
       const now = new Date();
       
-      // Format for the specified timezone
-      const localTimeFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
+      // Use cached formatters to avoid memory churn from re-creating Intl objects
+      const localTimeFormatter = getFormatter(timezone, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
       });
-      
-      const dateFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
+
+      const dateFormatter = getFormatter(timezone, {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
-      
-      const timezoneFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
+
+      const timezoneFormatter = getFormatter(timezone, {
         timeZoneName: 'short',
       });
       
