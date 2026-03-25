@@ -55,7 +55,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       // Timezone priority: explicit parameter > env variable > UTC fallback
       const timezone = request.params.arguments?.timezone || process.env.DEFAULT_TIMEZONE || 'UTC';
-      
+
+      // Validate timezone before making a network request
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch (e) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Invalid timezone: "${timezone}". Please use a valid IANA timezone identifier (e.g., UTC, America/New_York, Europe/London, Asia/Tokyo).`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
       const response = await fetch(WORKER_URL, {
         method: 'POST',
         headers: {
