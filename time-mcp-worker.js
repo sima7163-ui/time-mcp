@@ -21,19 +21,41 @@ export default {
     }
 
     try {
-      // Parse request body if it's a POST
+      // Parse request body if it's a POST, support GET via query params
       let timezone = 'UTC'; // Default to UTC
-      
+
       if (request.method === 'POST') {
         const body = await request.json();
         if (body.timezone) {
           timezone = body.timezone;
         }
+      } else if (request.method === 'GET') {
+        const url = new URL(request.url);
+        const tz = url.searchParams.get('timezone');
+        if (tz) {
+          timezone = tz;
+        }
+      }
+
+      // Validate the timezone identifier
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch (e) {
+        return new Response(JSON.stringify({
+          error: 'Invalid timezone',
+          message: `"${timezone}" is not a valid IANA timezone identifier. Examples: UTC, America/New_York, Europe/London, Asia/Tokyo`,
+        }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
       }
 
       // Get current time
       const now = new Date();
-      
+
       // Format for the specified timezone
       const localTimeFormatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone,
