@@ -268,23 +268,13 @@ export default {
 
     // ---- SSE endpoint (GET /mcp) for MCP Streamable HTTP ----
     if (path === '/mcp' && request.method === 'GET') {
-      const { readable, writable } = new TransformStream();
-      const writer = writable.getWriter();
-      const encoder = new TextEncoder();
-
-      // Send initial endpoint event so the client knows where to POST
       const endpointUrl = `${url.origin}/mcp?secret=${secret}`;
-      await writer.write(encoder.encode(`event: endpoint\ndata: ${endpointUrl}\n\n`));
+      const sseBody = `event: endpoint\ndata: ${endpointUrl}\n\n`;
 
-      // Keep connection alive briefly then close
-      // (Claude Desktop will use POST for actual tool calls)
-      setTimeout(() => writer.close(), 30000);
-
-      return new Response(readable, {
+      return new Response(sseBody, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
           ...corsHeaders,
         },
       });
