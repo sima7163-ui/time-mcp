@@ -26,14 +26,7 @@ function jsonrpcError(id, code, message) {
 // ============================================================
 
 async function initDB(db) {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS memories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content TEXT NOT NULL,
-      tags TEXT DEFAULT '',
-      created_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
+  await db.prepare("CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, tags TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))").run();
 }
 
 async function saveMemory(db, content, tags) {
